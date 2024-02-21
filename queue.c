@@ -76,13 +76,35 @@ bool q_insert_tail(struct list_head *head, char *s)
 /* Remove an element from head of queue */
 element_t *q_remove_head(struct list_head *head, char *sp, size_t bufsize)
 {
-    return NULL;
+    if (!head || list_empty(head))
+        return NULL;
+    // mind that first head is just begin of circular list and doesn't embedded
+    // in element(1st entry is located in 2nd node)
+    struct list_head *true_begin = head->next;
+    element_t *ele = list_entry(true_begin, element_t, list);
+    list_del(true_begin);
+    if (!ele)
+        return ele;
+    if (sp && ele->value) {
+        strncpy(sp, ele->value, bufsize);
+    }
+    return ele;
 }
 
 /* Remove an element from tail of queue */
 element_t *q_remove_tail(struct list_head *head, char *sp, size_t bufsize)
 {
-    return NULL;
+    if (!head || list_empty(head))
+        return NULL;
+    struct list_head *true_begin = head->prev;
+    element_t *ele = list_entry(true_begin, element_t, list);
+    list_del(true_begin);
+    if (!ele)
+        return ele;
+    if (sp && ele->value) {
+        strncpy(sp, ele->value, bufsize);
+    }
+    return ele;
 }
 
 /* Return number of elements in queue */
