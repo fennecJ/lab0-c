@@ -129,7 +129,28 @@ int q_size(struct list_head *head)
 bool q_delete_mid(struct list_head *head)
 {
     // https://leetcode.com/problems/delete-the-middle-node-of-a-linked-list/
-    return true;
+    if (!head)
+        return false;
+    // One move forward, one move backward, they'll meet in the middle in
+    // circular linked-list
+    struct list_head *forward;
+    struct list_head *backward;
+    forward = head;
+    backward = head->prev;
+
+    while (forward != backward && forward->next != backward) {
+        forward = forward->next;
+        backward = backward->prev;
+    }
+    element_t *target = list_entry(backward, element_t, list);
+    list_del(backward);
+    if (!target || !target->value) {
+        return false;
+    } else {
+        free(target->value);
+        free(target);
+        return true;
+    }
 }
 
 /* Delete all nodes that have duplicate string */
