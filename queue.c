@@ -51,8 +51,7 @@ bool q_insert_head(struct list_head *head, char *s)
         free(ele);
         return false;
     }
-    INIT_LIST_HEAD(&ele->list);
-    list_add(&(ele->list), head);
+    list_add(&ele->list, head);
     return true;
 }
 
@@ -72,8 +71,7 @@ bool q_insert_tail(struct list_head *head, char *s)
         free(ele);
         return false;
     }
-    INIT_LIST_HEAD(&ele->list);
-    list_add_tail(&(ele->list), head);
+    list_add_tail(&ele->list, head);
     return true;
 }
 
