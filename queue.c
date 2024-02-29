@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "list.h"
 
 #include "queue.h"
 
@@ -24,6 +25,8 @@ struct list_head *q_new()
 /* Free all storage used by queue */
 void q_free(struct list_head *head)
 {
+    if (!head)
+        return;
     element_t *entry;
     element_t *saf;
     list_for_each_entry_safe (entry, saf, head, list) {
@@ -212,10 +215,59 @@ int q_descend(struct list_head *head)
     return 0;
 }
 
+struct list_head *mergeTwoLists(struct list_head *l1,
+                                struct list_head *l2,
+                                bool descend)
+{
+    struct list_head *head = NULL, **ptr = &head, **node;
+    for (node = NULL; l1 && l2; *node = (*node)->next) {
+        element_t *ele1 = list_entry(l1, element_t, list);
+        element_t *ele2 = list_entry(l2, element_t, list);
+
+        node = ((strcmp(ele1->value, ele2->value) < 0) ^ descend) ? &l1 : &l2;
+        *ptr = *node;
+        ptr = &(*ptr)->next;
+    }
+    *ptr = (struct list_head *) ((uintptr_t) l1 | (uintptr_t) l2);
+    return head;
+}
+
 /* Merge all the queues into one sorted queue, which is in ascending/descending
  * order */
 int q_merge(struct list_head *head, bool descend)
 {
     // https://leetcode.com/problems/merge-k-sorted-lists/
-    return 0;
+    if (!head || list_empty(head))
+        return 0;
+    else if (list_is_singular(head))
+        return list_entry(head->next, queue_contex_t, chain)->size;
+
+    queue_contex_t *qct = list_entry(head->next, queue_contex_t, chain);
+    queue_contex_t *entry;
+    queue_contex_t *saf;
+    struct list_head *node, *prev;
+
+    int ele_cnt = qct->size;
+    qct->q->prev->next = NULL;  // make list singular
+
+    list_for_each_entry_safe (entry, saf, head, chain) {
+        if (!entry || entry == qct)
+            continue;
+        ele_cnt += entry->size;
+        entry->q->prev->next = NULL;  // make list singular
+        qct->q->next = mergeTwoLists(qct->q->next, entry->q->next, descend);
+        entry->size = 0;
+        entry->q->next = entry->q;
+    }
+    // rebuild prev link;
+    prev = qct->q;
+    node = qct->q->next;
+    while (node) {
+        node->prev = prev;
+        prev = node;
+        node = node->next;
+    }
+    prev->next = qct->q;
+    qct->q->prev = prev;
+    return ele_cnt;
 }
