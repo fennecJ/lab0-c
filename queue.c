@@ -266,6 +266,41 @@ void q_reverse(struct list_head *head)
 void q_reverseK(struct list_head *head, int k)
 {
     // https://leetcode.com/problems/reverse-nodes-in-k-group/
+    if (!head || list_empty(head) || list_is_singular(head))
+        return;
+    struct list_head *start, *tail, *tail_next, *node, *tmp;
+    start = head->next;
+    while (true) {
+        tail = start;
+        int i = 0;
+        // Find tail of sublist
+        while (i < k - 1) {
+            tail = tail->next;
+            i++;
+            if (tail == head)
+                return;
+        }
+        // start and tail will be maintained in latter
+        // thus skip start
+        node = start->next;
+        while (node != tail) {
+            tmp = node->next;
+            node->next = node->prev;
+            node->prev = tmp;
+            node = tmp;
+        }
+
+        tail_next = tail->next;
+
+        tail->next = tail->prev;
+        tail->prev = start->prev;
+        start->prev->next = tail;
+
+        start->prev = start->next;
+        start->next = tail_next;
+        tail_next->prev = start;
+        start = start->next;
+    }
 }
 
 static struct list_head *q_merge_sort(struct list_head *head, bool descend)
