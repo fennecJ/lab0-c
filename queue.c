@@ -318,7 +318,30 @@ void q_sort(struct list_head *head, bool descend)
 int q_ascend(struct list_head *head)
 {
     // https://leetcode.com/problems/remove-nodes-from-linked-list/
-    return 0;
+    if (!head || list_empty(head))
+        return 0;
+    if (list_is_singular(head))
+        return 1;
+    struct list_head *node = head->prev;
+    struct list_head *saf;
+    element_t *ele = list_entry(node, element_t, list);
+    char *min_str = ele->value;
+    node = node->prev;
+    int cnt = 1;
+    while (node != head) {
+        ele = list_entry(node, element_t, list);
+        saf = node->prev;
+        if (strcmp(ele->value, min_str) > 0) {
+            list_del(&ele->list);
+            free(ele->value);
+            free(ele);
+        } else {
+            min_str = ele->value;
+            cnt++;
+        }
+        node = saf;
+    }
+    return cnt;
 }
 
 /* Remove every node which has a node with a strictly greater value anywhere to
@@ -326,7 +349,30 @@ int q_ascend(struct list_head *head)
 int q_descend(struct list_head *head)
 {
     // https://leetcode.com/problems/remove-nodes-from-linked-list/
-    return 0;
+    if (!head || list_empty(head))
+        return 0;
+    if (list_is_singular(head))
+        return 1;
+    struct list_head *node = head->prev;
+    struct list_head *saf;
+    element_t *ele = list_entry(node, element_t, list);
+    char *max_str = ele->value;
+    node = node->prev;
+    int cnt = 1;
+    while (node != head) {
+        ele = list_entry(node, element_t, list);
+        saf = node->prev;
+        if (strcmp(ele->value, max_str) < 0) {
+            list_del(&ele->list);
+            free(ele->value);
+            free(ele);
+        } else {
+            max_str = ele->value;
+            cnt++;
+        }
+        node = saf;
+    }
+    return cnt;
 }
 
 /**
