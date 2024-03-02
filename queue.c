@@ -13,6 +13,28 @@
  */
 
 
+/**
+ * mergeTwoLists() - merge two SINGULAR SORTED list into one SINGULAR SORTED
+ * list in lexical order by element_t structure's value
+ * @l1: header of first singular sorted list
+ * @l2: header of second singular sorted list
+ * @descend: whether to merge lists sorted in descending order
+ *
+ * Return: merged list
+ */
+struct list_head *mergeTwoLists(struct list_head *l1,
+                                struct list_head *l2,
+                                bool descend);
+
+/**
+ * @brief rebuild_list_link() - rebuild given singular list into
+ * doubly list. Mind one should always ensure the list is singular
+ * before call to this function.
+ *
+ * @param head header of the list
+ */
+static inline void rebuild_list_link(struct list_head *head);
+
 /* Create an empty queue */
 struct list_head *q_new()
 {
@@ -196,8 +218,50 @@ void q_reverseK(struct list_head *head, int k)
     // https://leetcode.com/problems/reverse-nodes-in-k-group/
 }
 
+static struct list_head *q_merge_sort(struct list_head *head, bool descend)
+{
+    if (!head || !head->next)
+        return head;
+
+    struct list_head *slow = head;
+    for (struct list_head *fast = head->next; fast && fast->next;
+         fast = fast->next->next)
+        slow = slow->next;
+    struct list_head *mid = slow->next;
+    slow->next = NULL;
+
+    struct list_head *left = q_merge_sort(head, descend),
+                     *right = q_merge_sort(mid, descend);
+    return mergeTwoLists(left, right, descend);
+}
+
+
+/* Rebuild singular list back to doubly list again */
+static inline void rebuild_list_link(struct list_head *head)
+{
+    if (!head)
+        return;
+    struct list_head *node, *prev;
+    prev = head;
+    node = head->next;
+    while (node) {
+        node->prev = prev;
+        prev = node;
+        node = node->next;
+    }
+    prev->next = head;
+    head->prev = prev;
+}
+
 /* Sort elements of queue in ascending/descending order */
-void q_sort(struct list_head *head, bool descend) {}
+void q_sort(struct list_head *head, bool descend)
+{
+    if (!head || list_empty(head) || list_is_singular(head))
+        return;
+    head->prev->next = NULL;
+    head->next = q_merge_sort(head->next, descend);
+    rebuild_list_link(head);
+}
 
 /* Remove every node which has a node with a strictly less value anywhere to
  * the right side of it */
@@ -215,6 +279,15 @@ int q_descend(struct list_head *head)
     return 0;
 }
 
+/**
+ * mergeTwoLists() - merge two SINGULAR SORTED list into one SINGULAR SORTED
+ * list in lexical order by element_t structure's value
+ * @l1: header of first singular sorted list
+ * @l2: header of second singular sorted list
+ * @descend: whether to merge lists sorted in descending order
+ *
+ * Return: merged list
+ */
 struct list_head *mergeTwoLists(struct list_head *l1,
                                 struct list_head *l2,
                                 bool descend)
@@ -245,7 +318,6 @@ int q_merge(struct list_head *head, bool descend)
     queue_contex_t *qct = list_entry(head->next, queue_contex_t, chain);
     queue_contex_t *entry;
     queue_contex_t *saf;
-    struct list_head *node, *prev;
 
     int ele_cnt = qct->size;
     qct->q->prev->next = NULL;  // make list singular
@@ -260,14 +332,6 @@ int q_merge(struct list_head *head, bool descend)
         entry->q->next = entry->q;
     }
     // rebuild prev link;
-    prev = qct->q;
-    node = qct->q->next;
-    while (node) {
-        node->prev = prev;
-        prev = node;
-        node = node->next;
-    }
-    prev->next = qct->q;
-    qct->q->prev = prev;
+    rebuild_list_link(qct->q);
     return ele_cnt;
 }
