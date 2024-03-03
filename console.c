@@ -414,6 +414,19 @@ static bool do_web(int argc, char *argv[])
     return true;
 }
 
+static bool do_web_close(int argc, char *argv[])
+{
+    use_linenoise = true;
+    int res = close(web_fd);
+    web_fd = -1;
+    if (res == 0) {
+        return true;
+    } else {
+        perror("ERROR when closing web_fd");
+        return false;
+    }
+}
+
 /* Initialize interpreter */
 void init_cmd()
 {
@@ -430,7 +443,10 @@ void init_cmd()
     ADD_COMMAND(source, "Read commands from source file", "");
     ADD_COMMAND(log, "Copy output to file", "file");
     ADD_COMMAND(time, "Time command execution", "cmd arg ...");
-    ADD_COMMAND(web, "Read commands from builtin web server", "[port]");
+    ADD_COMMAND(web,
+                "Read commands from builtin web server and turn off linenoise",
+                "[port]");
+    ADD_COMMAND(web_close, "Close web server and turn on linenoise", "");
     add_cmd("#", do_comment_cmd, "Display comment", "...");
     add_param("simulation", &simulation, "Start/Stop simulation mode", NULL);
     add_param("verbose", &verblevel, "Verbosity level", NULL);
@@ -655,6 +671,7 @@ bool run_console(char *infile_name)
 
     if (!has_infile) {
         char *cmdline;
+    use_line:
         while (use_linenoise && (cmdline = linenoise(prompt))) {
             interpret_cmd(cmdline);
             line_history_add(cmdline);       /* Add to the history. */
@@ -665,8 +682,11 @@ bool run_console(char *infile_name)
             has_infile = false;
         }
         if (!use_linenoise) {
-            while (!cmd_done())
+            while (!cmd_done()) {
                 cmd_select(0, NULL, NULL, NULL, NULL);
+                if (use_linenoise)
+                    goto use_line;
+            }
         }
     } else {
         while (!cmd_done())
