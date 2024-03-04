@@ -466,3 +466,38 @@ int q_merge(struct list_head *head, bool descend)
     rebuild_list_link(qct->q);
     return ele_cnt;
 }
+
+/* swap two node and fixed up doubly link */
+void swap_node_val(struct list_head *a, struct list_head *b)
+{
+    if (!a || !b || a == b)
+        return;
+    element_t *ele1 = list_entry(a, element_t, list);
+    element_t *ele2 = list_entry(b, element_t, list);
+    char *tmp = ele1->value;
+    ele1->value = ele2->value;
+    ele2->value = tmp;
+}
+
+/* Shuffle all nodes in a given queue */
+void q_shuffle(struct list_head *head)
+{
+    if (!head || list_empty(head) || list_is_singular(head))
+        return;
+    int len = q_size(head);
+    struct list_head *node;
+    struct list_head *tmp;
+    struct list_head *next_node;
+    node = head->next;
+    while (len > 1) {
+        next_node = node->next;
+        tmp = node;
+        int cnt = rand() % len;
+        for (int i = 0; i < cnt; i++) {
+            tmp = tmp->next;
+        }
+        swap_node_val(node, tmp);
+        node = next_node;
+        len--;
+    }
+}

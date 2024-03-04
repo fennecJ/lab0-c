@@ -86,6 +86,8 @@ typedef enum {
 /* Forward declarations */
 static bool q_show(int vlevel);
 
+void q_shuffle(struct list_head *head);
+
 static bool do_free(int argc, char *argv[])
 {
     if (argc != 1) {
@@ -667,6 +669,36 @@ bool do_sort(int argc, char *argv[])
     return ok && !error_check();
 }
 
+bool do_shuffle(int argc, char *argv[])
+{
+    if (argc != 1) {
+        report(1, "%s takes no arguments", argv[0]);
+        return false;
+    }
+
+    int cnt = 0;
+    if (!current || !current->q)
+        report(3, "Warning: Calling shuffle on null queue");
+    else
+        cnt = q_size(current->q);
+    error_check();
+
+    if (cnt < 2)
+        report(3, "Warning: Calling shuffle on single node");
+    error_check();
+
+    set_noallocate_mode(true);
+    if (current && exception_setup(true))
+        q_shuffle(current->q);
+    exception_cancel();
+    set_noallocate_mode(false);
+
+    bool ok = true;
+
+    q_show(3);
+    return ok && !error_check();
+}
+
 static bool do_dm(int argc, char *argv[])
 {
     if (argc != 1) {
@@ -1080,6 +1112,7 @@ static void console_init()
         "[str]");
     ADD_COMMAND(reverse, "Reverse queue", "");
     ADD_COMMAND(sort, "Sort queue in ascending/descening order", "");
+    ADD_COMMAND(shuffle, "Shuffle queue to be random order", "");
     ADD_COMMAND(size, "Compute queue size n times (default: n == 1)", "[n]");
     ADD_COMMAND(show, "Show queue contents", "");
     ADD_COMMAND(dm, "Delete middle node in queue", "");
