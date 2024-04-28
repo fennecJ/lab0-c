@@ -23,6 +23,8 @@
 #include "list.h"
 #include "random.h"
 
+#include "ttt/ttt.h"
+
 /* Shannon entropy */
 extern double shannon_entropy(const uint8_t *input_data);
 extern int show_entropy;
@@ -1088,6 +1090,16 @@ static bool do_next(int argc, char *argv[])
     return q_show(0);
 }
 
+static bool do_ttt(int argc, char *argv[])
+{
+    if (argc != 1) {
+        report(1, "%s takes no arguments", argv[0]);
+        return false;
+    }
+
+    return ttt() == 0;
+}
+
 static void console_init()
 {
     ADD_COMMAND(new, "Create new queue", "");
@@ -1129,6 +1141,7 @@ static void console_init()
                 "");
     ADD_COMMAND(reverseK, "Reverse the nodes of the queue 'K' at a time",
                 "[K]");
+    ADD_COMMAND(ttt, "Start ttt game", "");
     add_param("length", &string_length, "Maximum length of displayed string",
               NULL);
     add_param("malloc", &fail_probability, "Malloc failure probability percent",

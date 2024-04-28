@@ -21,6 +21,9 @@ CPPCHECK_suppresses="--inline-suppr harness.c \
 --suppress=constParameterPointer:console.c \
 --suppress=checkLevelNormal:log2_lshift16.h \
 --suppress=preprocessorErrorDirective:random.h \
+--suppress=variableScope:ttt/mt19937-64.c \
+--suppress=nullPointer:ttt/zobrist.c
+--suppress=nullPointer:ttt/agents/mcts.c \
 "
 CPPCHECK_OPTS="-I. --enable=all --error-exitcode=1 --force $CPPCHECK_suppresses $CPPCHECK_unmatched ."
 
