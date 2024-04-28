@@ -76,6 +76,7 @@ static int fail_count = 0;
 static int string_length = MAXSTRING;
 
 static int descend = 0;
+static int ttt_ai2 = 0;
 
 #define MIN_RANDSTR_LEN 5
 #define MAX_RANDSTR_LEN 10
@@ -1097,7 +1098,7 @@ static bool do_ttt(int argc, char *argv[])
         return false;
     }
 
-    return ttt() == 0;
+    return ttt(ttt_ai2) == 0;
 }
 
 static void console_init()
@@ -1141,7 +1142,8 @@ static void console_init()
                 "");
     ADD_COMMAND(reverseK, "Reverse the nodes of the queue 'K' at a time",
                 "[K]");
-    ADD_COMMAND(ttt, "Start ttt game", "");
+    ADD_COMMAND(ttt, "Start ttt game with mode [0 - p_vs_ai, 1 - ai_vs_ai]",
+                "[mode]");
     add_param("length", &string_length, "Maximum length of displayed string",
               NULL);
     add_param("malloc", &fail_probability, "Malloc failure probability percent",
@@ -1150,6 +1152,7 @@ static void console_init()
               "Number of times allow queue operations to return false", NULL);
     add_param("descend", &descend,
               "Sort and merge queue in ascending/descending order", NULL);
+    add_param("ttt_player", &ttt_ai2, "0: human vs ai 1: ai vs ai", NULL);
 }
 
 /* Signal handlers */

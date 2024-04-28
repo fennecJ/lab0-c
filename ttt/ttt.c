@@ -8,14 +8,9 @@
 #include <string.h>
 #include <time.h>
 
-#include "game.h"
-#ifdef USE_RL
-#include "agents/reinforcement_learning.h"
-#elif defined(USE_MCTS)
 #include "agents/mcts.h"
-#else
 #include "agents/negamax.h"
-#endif
+#include "game.h"
 
 static int move_record[N_GRIDS];
 static int move_count = 0;
@@ -97,25 +92,14 @@ static int get_input(char player)
     return GET_INDEX(y, x);
 }
 
-int ttt()
+int ttt(int ai2)
 {
     srand(time(NULL));
     char table[N_GRIDS];
     memset(table, ' ', N_GRIDS);
     char turn = 'X';
     char ai = 'O';
-
-#ifdef USE_RL
-    rl_agent_t agent;
-    unsigned int state_num = 1;
-    CALC_STATE_NUM(state_num);
-    init_rl_agent(&agent, state_num, 'O');
-    load_model(&agent, state_num, MODEL_NAME);
-#elif defined(USE_MCTS)
-    // A routine for initializing MCTS is not required.
-#else
     negamax_init();
-#endif
     while (1) {
         char win = check_win(table);
         if (win == 'D') {
@@ -127,38 +111,32 @@ int ttt()
             printf("%c won!\n", win);
             break;
         }
-
         if (turn == ai) {
-#ifdef USE_RL
-            int move = play_rl(table, &agent);
-            record_move(move);
-#elif defined(USE_MCTS)
-            int move = mcts(table, ai);
-            if (move != -1) {
-                table[move] = ai;
-                record_move(move);
-            }
-#else
             int move = negamax_predict(table, ai).move;
             if (move != -1) {
                 table[move] = ai;
                 record_move(move);
             }
-#endif
         } else {
             draw_board(table);
             int move;
-            while (1) {
-                move = get_input(turn);
-                if (table[move] == ' ') {
-                    break;
+            if (ai2) {
+                move = mcts(table, turn);
+            } else {
+                while (1) {
+                    move = get_input(turn);
+                    if (table[move] == ' ') {
+                        break;
+                    }
+                    printf("Invalid operation: the position has been marked\n");
                 }
-                printf("Invalid operation: the position has been marked\n");
             }
-            table[move] = turn;
-            record_move(move);
+            if (move != -1) {
+                table[move] = turn;
+                record_move(move);
+            }
         }
-        turn = turn == 'X' ? 'O' : 'X';
+        turn = turn ^ 'O' ^ 'X';
     }
     print_moves();
 

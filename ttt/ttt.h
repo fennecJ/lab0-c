@@ -19,6 +19,6 @@
 #include "agents/negamax.h"
 #endif
 
-int ttt();
+int ttt(int);
 
 #endif  // _TTT_H_
