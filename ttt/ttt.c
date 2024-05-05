@@ -17,9 +17,12 @@
 #include "task_sched.h"
 #include "termutil.h"
 
+#define INPUT_BUF_SIZE 16
+
 static int move_record[N_GRIDS];
 static int move_count = 0;
 bool keep_ttt = 0;
+char input[INPUT_BUF_SIZE] = "";
 bool run_ttt = true;
 bool has_input = false;
 bool render_screen = true;
@@ -57,62 +60,50 @@ static void print_moves()
     printf("\r\n");
 }
 
-static int get_input(char player)
+static int parse_input()
 {
-    char *line = NULL;
-    size_t line_length = 0;
+    int x, y;
     int parseX = 1;
-
-    int x = -1, y = -1;
-    while (x < 0 || x > (BOARD_SIZE - 1) || y < 0 || y > (BOARD_SIZE - 1)) {
-        printf("%c> ", player);
-        int r = getline(&line, &line_length, stdin);
-        if (r == -1)
-            exit(1);
-        if (r < 2)
+    if (input_offset < 2)
+        return -1;
+    x = 0;
+    y = 0;
+    parseX = 1;
+    for (int i = 0; i < (input_offset); i++) {
+        if (isalpha(input[i]) && parseX) {
+            x = x * 26 + (tolower(input[i]) - 'a' + 1);
+            if (x > BOARD_SIZE) {
+                preempt_disable();
+                printf("\r\nInvalid operation: index exceeds board size\r\n");
+                preempt_enable();
+                return -1;
+            }
             continue;
-        x = 0;
-        y = 0;
-        parseX = 1;
-        for (int i = 0; i < (r - 1); i++) {
-            if (isalpha(line[i]) && parseX) {
-                x = x * 26 + (tolower(line[i]) - 'a' + 1);
-                if (x > BOARD_SIZE) {
-                    // could be any value in [BOARD_SIZE + 1, INT_MAX]
-                    x = BOARD_SIZE + 1;
-                    printf("Invalid operation: index exceeds board size\n");
-                    break;
-                }
-                continue;
-            }
-            // input does not have leading alphabets
-            if (x == 0) {
-                printf("Invalid operation: No leading alphabet\n");
-                y = 0;
-                break;
-            }
-            parseX = 0;
-            if (isdigit(line[i])) {
-                y = y * 10 + line[i] - '0';
-                if (y > BOARD_SIZE) {
-                    // could be any value in [BOARD_SIZE + 1, INT_MAX]
-                    y = BOARD_SIZE + 1;
-                    printf("Invalid operation: index exceeds board size\n");
-                    break;
-                }
-                continue;
-            }
-            // any other character is invalid
-            // any non-digit char during digit parsing is invalid
-            // TODO: Error message could be better by separating these two cases
-            printf("Invalid operation\n");
-            x = y = 0;
-            break;
         }
-        x -= 1;
-        y -= 1;
+        if (x == 0) {
+            preempt_disable();
+            printf("\r\nInvalid operation: No leading alphabet\r\n");
+            preempt_enable();
+            return -1;
+        }
+        parseX = 0;
+        if (isdigit(input[i])) {
+            y = y * 10 + input[i] - '0';
+            if (y > BOARD_SIZE) {
+                preempt_disable();
+                printf("\r\nInvalid operation: index exceeds board size\r\n");
+                preempt_enable();
+                return -1;
+            }
+            continue;
+        }
+        preempt_disable();
+        printf("\r\nInvalid operation\r\n");
+        preempt_enable();
+        return -1;
     }
-    free(line);
+    x -= 1;
+    y -= 1;
     return GET_INDEX(y, x);
 }
 
@@ -141,6 +132,53 @@ void listen_keyboard(void *arg)
             if (!echo)
                 render_screen = !render_screen;
             break;
+        }
+        case ENTER: {
+            if (echo) {
+                preempt_disable();
+                clear_line();
+                clear_screen();
+                fflush(stdout);
+                has_input = input_offset;
+                preempt_enable();
+            }
+            break;
+        }
+        case '\0': {
+            break;
+        }
+        case BACK_SPACE: {
+            if (input_offset) {
+                input_offset -= 1;
+                input[input_offset] = '\0';
+                printf("\b \b");
+                // move cursor back,
+                // then print a space (to erase/overwrite last char)
+                // and move cursor back again (because space let cursor move for
+                // ward)
+                fflush(stdout);
+            }
+            break;
+        }
+        default: {
+            if (echo) {
+                if ((c & 0x1f) == c) {  // press ctrl
+                    printf("^%c", c | 0x40);
+                    if (input_offset <
+                        INPUT_BUF_SIZE - 2) {  // 2 char, one for '^'
+                        snprintf(input + input_offset, 3, "^%c", c | 0x40);
+                        input_offset += 2;
+                    }
+                } else {
+                    printf("%c", c);
+                    if (input_offset < INPUT_BUF_SIZE - 1) {
+                        snprintf(input + input_offset, 2, "%c", c);
+                        input_offset += 1;
+                    }
+                }
+                fflush(stdout);
+            }
+            // printf("default: %c\r\n", c);
         }
         }
         c = '\0';
@@ -185,6 +223,27 @@ void player_O_move(void *arg)
             schedule();
         }
     }
+}
+
+int human_play(char *table, char mark)
+{
+    if (!has_input) {
+        return -1;
+    }
+    int move = parse_input();
+    memset(input, ' ', INPUT_BUF_SIZE);  // clr input buffer
+    input[INPUT_BUF_SIZE - 1] = '\r';
+    has_input = false;
+    input_offset = 0;
+    if (move != -1 && table[move] != ' ') {
+        move = -1;
+        preempt_disable();
+        printf(
+            "\r\nInvalid operation: the position has been "
+            "marked\r\n");
+        preempt_enable();
+    }
+    return move;
 }
 
 void print_time()
@@ -252,6 +311,8 @@ void update_screen(void *arg)
             fflush(stdout);
             print_moves();
         }
+        if (g_args->echo)
+            printf("O>%s", input);
         preempt_enable();
         schedule();
     }
@@ -273,13 +334,6 @@ void init_game_arg(game_arg *g_args,
     g_args->draw = 0;
     g_args->pX_name = strdup(g1_name);
     g_args->pO_name = strdup(g2_name);
-}
-
-int human_play(char *table, char mark)
-{
-    // TODO
-    get_input(mark);
-    return -1;
 }
 
 int ttt(int ai2)
