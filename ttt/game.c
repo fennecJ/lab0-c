@@ -117,7 +117,7 @@ void draw_board(const char *t)
             }
             printf("\x1b[49m");
         }
-        printf("\n");
+        printf("\r\n");
     }
     if (BOARD_SIZE >= 10)
         printf("-");
@@ -126,7 +126,7 @@ void draw_board(const char *t)
     printf("---+-");
     for (int i = 0; i < BOARD_SIZE; i++)
         printf("---");
-    printf("\n");
+    printf("\r\n");
     if (BOARD_SIZE >= 10)
         printf(" ");
     if (BOARD_SIZE >= 100)
@@ -134,5 +134,6 @@ void draw_board(const char *t)
     printf("    ");
     for (int i = 0; i < BOARD_SIZE; i++)
         printf(" %2c", 'A' + i);
-    printf("\n");
+    printf("\r\n");
+    // printf("%s", buffer);
 }

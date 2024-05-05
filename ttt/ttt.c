@@ -3,6 +3,7 @@
 #endif
 
 #include <ctype.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,9 +12,30 @@
 #include "agents/mcts.h"
 #include "agents/negamax.h"
 #include "game.h"
+#include "task_sched.h"
+#include "termutil.h"
 
 static int move_record[N_GRIDS];
 static int move_count = 0;
+bool keep_ttt = 0;
+bool run_ttt = true;
+bool has_input = false;
+bool render_screen = true;
+int input_offset = 0;
+typedef int(game_agent_t)(char *table, char mark);
+typedef struct {
+    char turn;
+    char table[N_GRIDS];
+    bool game_play;
+    game_agent_t *agentX;
+    game_agent_t *agentO;
+    int pX_score;
+    int pO_score;
+    int draw;
+    char *pX_name;
+    char *pO_name;
+    bool echo;
+} game_arg;
 
 static void record_move(int move)
 {
@@ -30,8 +52,7 @@ static void print_moves()
             printf(" -> ");
         }
     }
-    printf("\n");
-    move_count = 0;
+    printf("\r\n");
 }
 
 static int get_input(char player)
@@ -93,52 +114,169 @@ static int get_input(char player)
     return GET_INDEX(y, x);
 }
 
+void player_X_move(void *arg)
+{
+    game_arg *g_args = (game_arg *) arg;
+    while (run_ttt) {
+        bool game_play = g_args->game_play;
+        char *table = g_args->table;
+        char turn = g_args->turn;
+        if (turn == 'X' && game_play) {
+            int move = g_args->agentX(table, 'X');
+            if (move != -1) {
+                table[move] = 'X';
+                record_move(move);
+                g_args->turn = 'O';
+            }
+        } else {
+            schedule();
+        }
+    }
+}
+
+void player_O_move(void *arg)
+{
+    game_arg *g_args = (game_arg *) arg;
+    while (run_ttt) {
+        bool game_play = g_args->game_play;
+        char *table = g_args->table;
+        char turn = g_args->turn;
+        if (turn == 'O' && game_play) {
+            int move = g_args->agentO(table, 'O');
+            if (move != -1) {
+                table[move] = 'O';
+                record_move(move);
+                g_args->turn = 'X';
+            }
+        } else {
+            schedule();
+        }
+    }
+}
+
+void print_time()
+{
+    time_t mytime = time(NULL);
+    char *time_str = ctime(&mytime);
+    time_str[strlen(time_str) - 1] = '\0';
+    printf("%s\r\n", time_str);
+}
+
+int negamax_wrapper(char *table, char mark)
+{
+    return negamax_predict(table, mark).move;
+}
+
+void game_manager(void *arg)
+{
+    while (run_ttt) {
+        preempt_disable();
+        game_arg *g_args = (game_arg *) arg;
+        char *table = g_args->table;
+        char win = check_win(table);
+        if (win == 'D') {
+            if (render_screen) {
+                clear_line();
+                fflush(stdout);
+                printf("It is a draw!\r\n");
+                memset(table, ' ', N_GRIDS);
+            }
+            g_args->draw += 1;
+            move_count = 0;
+            // break;
+        } else if (win != ' ') {
+            if (render_screen) {
+                printf("\r\n");
+                clear_line();
+                fflush(stdout);
+                printf("%s won!\r\n",
+                       (win == 'X') ? g_args->pX_name : g_args->pO_name);
+            }
+            memset(table, ' ', N_GRIDS);
+            g_args->pX_score += (win == 'X');
+            g_args->pO_score += (win == 'O');
+            move_count = 0;
+            // break;
+        }
+        preempt_enable();
+        schedule();
+    }
+}
+
+void update_screen(void *arg)
+{
+    game_arg *g_args = (game_arg *) arg;
+    char *table = g_args->table;
+    while (run_ttt) {
+        preempt_disable();
+        move_cursor_to_begin();
+        print_time();
+        printf("%s:%d %s:%d draw:%d\r\n", g_args->pX_name, g_args->pX_score,
+               g_args->pO_name, g_args->pO_score, g_args->draw);
+        if (render_screen) {
+            draw_board(table);
+            clear_line();
+            fflush(stdout);
+            print_moves();
+        }
+        preempt_enable();
+        schedule();
+    }
+}
+
+void init_game_arg(game_arg *g_args,
+                   game_agent_t *g1,
+                   game_agent_t *g2,
+                   char *g1_name,
+                   char *g2_name)
+{
+    g_args->turn = 'X';
+    memset(g_args->table, ' ', N_GRIDS);
+    g_args->game_play = true;
+    g_args->agentX = g1;
+    g_args->agentO = g2;
+    g_args->pX_score = 0;
+    g_args->pO_score = 0;
+    g_args->draw = 0;
+    g_args->pX_name = strdup(g1_name);
+    g_args->pO_name = strdup(g2_name);
+}
+
+int human_play(char *table, char mark)
+{
+    // TODO
+    get_input(mark);
+    return -1;
+}
+
 int ttt(int ai2)
 {
     srand(time(NULL));
-    char table[N_GRIDS];
-    memset(table, ' ', N_GRIDS);
-    char turn = 'X';
-    char ai = 'O';
+    game_arg *g_args = malloc(sizeof(game_arg));
+    if (ai2)
+        init_game_arg(g_args, negamax_wrapper, mcts, "negamax", "mcts");
+    else
+        init_game_arg(g_args, negamax_wrapper, human_play, "negamax", "human");
+
+    g_args->echo = !ai2;
     negamax_init();
-    while (1) {
-        char win = check_win(table);
-        if (win == 'D') {
-            draw_board(table);
-            printf("It is a draw!\n");
-            break;
-        } else if (win != ' ') {
-            draw_board(table);
-            printf("%c won!\n", win);
-            break;
-        }
-        if (turn == ai) {
-            int move = negamax_predict(table, ai).move;
-            if (move != -1) {
-                table[move] = ai;
-                record_move(move);
-            }
-        } else {
-            draw_board(table);
-            int move;
-            if (ai2) {
-                move = mcts(table, turn);
-            } else {
-                while (1) {
-                    move = get_input(turn);
-                    if (table[move] == ' ') {
-                        break;
-                    }
-                    printf("Invalid operation: the position has been marked\n");
-                }
-            }
-            if (move != -1) {
-                table[move] = turn;
-                record_move(move);
-            }
-        }
-        turn = turn ^ 'O' ^ 'X';
-    }
-    print_moves();
+    clear_screen();
+
+    timer_init();
+    task_init();
+    hide_cursor();
+    enable_raw_mode();
+
+    task_add(player_X_move, g_args);
+    task_add(update_screen, g_args);
+    task_add(game_manager, g_args);
+    task_add(player_O_move, g_args);
+    task_add(update_screen, g_args);
+    task_add(game_manager, g_args);
+
+    sched_start();
+    show_cursor();
+    disable_raw_mode();
+    printf("\nLeaving ttt...\n");
     return 0;
 }

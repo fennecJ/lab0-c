@@ -43,6 +43,8 @@ OBJS := qtest.o report.o console.o harness.o queue.o \
         random.o dudect/constant.o dudect/fixture.o dudect/ttest.o \
         shannon_entropy.o \
         linenoise.o web.o \
+		ttt/task_sched.o \
+		ttt/termutil.o \
 		ttt/ttt.o \
 		ttt/game.o \
 		ttt/mt19937-64.o \
