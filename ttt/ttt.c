@@ -3,11 +3,13 @@
 #endif
 
 #include <ctype.h>
+#include <poll.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "agents/mcts.h"
 #include "agents/negamax.h"
@@ -112,6 +114,37 @@ static int get_input(char player)
     }
     free(line);
     return GET_INDEX(y, x);
+}
+
+void listen_keyboard(void *arg)
+{
+    game_arg *g_args = (game_arg *) arg;
+    bool echo = g_args->echo;
+    struct pollfd pfd = {STDIN_FILENO, POLLIN, 0};
+    nfds_t nfds = 1;
+    char c = '\0';
+
+    while (run_ttt) {
+        poll(&pfd, nfds, 0);
+        if (!(pfd.revents & POLLIN))
+            schedule();
+        // prepend (void)! to make gcc happy
+        // otherwise it will throw Werror = unused-result
+        // but here we don't need to take care of read() return value
+        (void) !read(STDIN_FILENO, &c, 1);
+        switch (c) {
+        case CTRL_('q'): {
+            run_ttt = false;
+            break;
+        }
+        case CTRL_('p'): {
+            if (!echo)
+                render_screen = !render_screen;
+            break;
+        }
+        }
+        c = '\0';
+    }
 }
 
 void player_X_move(void *arg)
@@ -267,6 +300,7 @@ int ttt(int ai2)
     hide_cursor();
     enable_raw_mode();
 
+    task_add(listen_keyboard, g_args);
     task_add(player_X_move, g_args);
     task_add(update_screen, g_args);
     task_add(game_manager, g_args);
