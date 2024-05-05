@@ -31,6 +31,7 @@ static void print_moves()
         }
     }
     printf("\n");
+    move_count = 0;
 }
 
 static int get_input(char player)
@@ -139,6 +140,5 @@ int ttt(int ai2)
         turn = turn ^ 'O' ^ 'X';
     }
     print_moves();
-
     return 0;
 }
