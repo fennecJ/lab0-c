@@ -26,7 +26,7 @@ CPPCHECK_suppresses="--inline-suppr harness.c \
 --suppress=nullPointer:ttt/agents/mcts.c \
 --suppress=nullPointer:ttt/task_sched.c \
 "
-CPPCHECK_OPTS="-I. --enable=all --error-exitcode=1 --force $CPPCHECK_suppresses $CPPCHECK_unmatched ."
+CPPCHECK_OPTS="-I. -Ittt -Ittt/agents --enable=all --error-exitcode=1 --force $CPPCHECK_suppresses $CPPCHECK_unmatched ."
 
 RETURN=0
 CLANG_FORMAT=$(which clang-format)
