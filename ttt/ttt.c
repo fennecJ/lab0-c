@@ -11,6 +11,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "../queue.h"
 #include "agents/mcts.h"
 #include "agents/negamax.h"
 #include "game.h"
@@ -26,6 +27,7 @@ char input[INPUT_BUF_SIZE] = "";
 bool run_ttt = true;
 bool has_input = false;
 bool render_screen = true;
+bool recordOK = true;
 int input_offset = 0;
 typedef int(game_agent_t)(char *table, char mark);
 typedef struct {
@@ -41,6 +43,28 @@ typedef struct {
     char *pO_name;
     bool echo;
 } game_arg;
+
+struct list_head *move_list;
+
+void q_print_record_list(struct list_head *head, game_arg *g_args)
+{
+    if (!head || list_empty(head))
+        return;
+
+    char rec_path[] = "ttt_rec";
+    FILE *rec_file = fopen(rec_path, "w");
+    element_t *ele = NULL;
+    list_for_each_entry (ele, head, list) {
+        printf("%s\n", ele->value);
+        fprintf(rec_file, "%s\n", ele->value);
+    }
+    printf("%s:%d %s:%d draw:%d\n", g_args->pX_name, g_args->pX_score,
+           g_args->pO_name, g_args->pO_score, g_args->draw);
+    fprintf(rec_file, "%s:%d %s:%d draw:%d\n", g_args->pX_name,
+            g_args->pX_score, g_args->pO_name, g_args->pO_score, g_args->draw);
+    fclose(rec_file);
+    printf("Record has been written to %s\n", rec_path);
+}
 
 static void record_move(int move)
 {
@@ -58,6 +82,40 @@ static void print_moves()
         }
     }
     printf("\r\n");
+}
+static void record_move_list(char *winner)
+{
+    // A1 -> A2 -> B2 -> B3
+    // ' -> ' need 4 char space, at most (N_GRIDS - 1)'s ' -> ' in a draw game
+    // each move need 2 char, at most N_GRIDS's move will be record
+    // 1 extra char for '\0'
+    // total is 4 * (N_GRIDS - 1) + 2 * N_GRIDS + 1
+    // = 6 * N_GRIDS - 3
+    // Prepend 32 byte for record winners
+    if (!recordOK)
+        return;
+    char moves[32 + 6 * N_GRIDS - 3];
+    int offset = 0;
+    if (!strcmp(winner, "draw")) {
+        offset += snprintf(moves, 32, "%10s | ", "draw");
+    } else {
+        offset += snprintf(moves, 32, "%10s win | ", winner);
+    }
+    snprintf(moves + offset, 8, "Moves: ");
+    for (int i = 0; i < move_count; i++) {
+        offset +=
+            snprintf(moves + offset, 3, "%c%d", 'A' + GET_COL(move_record[i]),
+                     1 + GET_ROW(move_record[i]));
+        if (i < move_count - 1) {
+            offset += snprintf(moves + offset, 5, " -> ");
+        }
+    }
+    recordOK = q_insert_tail(move_list, moves);
+    if (!recordOK) {
+        preempt_disable();
+        printf("out of memory, stop record further moves\r\n");
+        preempt_enable();
+    }
 }
 
 static int parse_input()
@@ -129,8 +187,10 @@ void listen_keyboard(void *arg)
             break;
         }
         case CTRL_('p'): {
-            if (!echo)
+            if (!echo) {  // echo will be false in ai vs ai mode, ctrl p only
+                          // worked in this mode
                 render_screen = !render_screen;
+            }
             break;
         }
         case ENTER: {
@@ -271,8 +331,9 @@ void game_manager(void *arg)
                 clear_line();
                 fflush(stdout);
                 printf("It is a draw!\r\n");
-                memset(table, ' ', N_GRIDS);
             }
+            record_move_list("Draw");
+            memset(table, ' ', N_GRIDS);
             g_args->draw += 1;
             move_count = 0;
             // break;
@@ -284,6 +345,7 @@ void game_manager(void *arg)
                 printf("%s won!\r\n",
                        (win == 'X') ? g_args->pX_name : g_args->pO_name);
             }
+            record_move_list((win == 'X') ? g_args->pX_name : g_args->pO_name);
             memset(table, ' ', N_GRIDS);
             g_args->pX_score += (win == 'X');
             g_args->pO_score += (win == 'O');
@@ -336,14 +398,42 @@ void init_game_arg(game_arg *g_args,
     g_args->pO_name = strdup(g2_name);
 }
 
+void free_game_arg(game_arg *g_args)
+{
+    if (!g_args)
+        return;
+
+    if (g_args->pO_name)
+        free(g_args->pO_name);
+    if (g_args->pX_name)
+        free(g_args->pX_name);
+    free(g_args);
+}
+
+// rst ttt global vars
+void rst_ttt()
+{
+    keep_ttt = 0;
+    run_ttt = true;
+    has_input = false;
+    render_screen = true;
+    recordOK = true;
+    input_offset = 0;
+    memset(input, ' ', INPUT_BUF_SIZE);
+    input[0] = '\0';
+}
+
 int ttt(int ai2)
 {
     srand(time(NULL));
+    move_list = malloc(sizeof(struct list_head));
+    INIT_LIST_HEAD(move_list);
     game_arg *g_args = malloc(sizeof(game_arg));
     if (ai2)
         init_game_arg(g_args, negamax_wrapper, mcts, "negamax", "mcts");
     else
         init_game_arg(g_args, negamax_wrapper, human_play, "negamax", "human");
+
 
     g_args->echo = !ai2;
     negamax_init();
@@ -363,8 +453,13 @@ int ttt(int ai2)
     task_add(game_manager, g_args);
 
     sched_start();
+    printf("\r\nLeaving ttt...\r\n");
     show_cursor();
     disable_raw_mode();
-    printf("\nLeaving ttt...\n");
+    q_print_record_list(move_list, g_args);
+    q_free(move_list);
+    free_game_arg(g_args);
+    rst_ttt();
+
     return 0;
 }
