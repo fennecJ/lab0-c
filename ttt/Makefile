@@ -1,6 +1,6 @@
 PROG = ttt
 CFLAGS := -Wall -Wextra -std=c11
-CFLAGS += -I. -MMD
+CFLAGS += -I. -MMD -Ittt -Ittt/agents
 LDFLAGS :=
 TRAIN = train
 RL = rl

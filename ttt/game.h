@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdint.h>
 #define BOARD_SIZE 4
 #define GOAL 3
 #define ALLOW_EXCEED 1
@@ -21,5 +22,5 @@ extern const line_t lines[4];
 
 int *available_moves(const char *table);
 char check_win(char *t);
-double calculate_win_value(char win, char player);
+uint32_t calculate_win_value(char win, char player);
 void draw_board(const char *t);

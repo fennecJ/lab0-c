@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -O1 -g -Wall -Werror -Idudect -I.
+CFLAGS = -O1 -g -Wall -Werror -Idudect -I. 
 
 # Emit a warning should any variable-length array be found within the code.
 CFLAGS += -Wvla
@@ -8,7 +8,7 @@ GIT_HOOKS := .git/hooks/applied
 DUT_DIR := dudect
 TTT_DIR := ttt
 TTT_AGENT_DIR := ttt/agents
-all: $(GIT_HOOKS) qtest ttt
+all: $(GIT_HOOKS) ttt qtest
 
 tid := 0
 
@@ -45,6 +45,7 @@ OBJS := qtest.o report.o console.o harness.o queue.o \
         linenoise.o web.o \
 		ttt/task_sched.o \
 		ttt/termutil.o \
+		ttt/agents/fixPoint.o \
 		ttt/ttt.o \
 		ttt/game.o \
 		ttt/mt19937-64.o \

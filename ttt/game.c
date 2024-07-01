@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "agents/fixPoint.h"
 #include "game.h"
 
 #define LOOKUP(table, i, j, else_value)                         \
@@ -62,13 +63,13 @@ char check_win(char *t)
     return 'D';
 }
 
-double calculate_win_value(char win, char player)
+uint32_t calculate_win_value(char win, char player)
 {
     if (win == player)
-        return 1.0;
+        return (uint32_t) 1 << (PRECISION);
     if (win == (player ^ 'O' ^ 'X'))
-        return 0.0;
-    return 0.5;
+        return 0;
+    return (uint32_t) 1 << (PRECISION - 1);
 }
 
 int *available_moves(const char *table)

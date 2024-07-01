@@ -311,7 +311,8 @@ void print_time()
     time_t mytime = time(NULL);
     char *time_str = ctime(&mytime);
     time_str[strlen(time_str) - 1] = '\0';
-    printf("%s\r\n", time_str);
+    printf("%s\r\nctrl-Q: quit, ctrl-P: pause(only work in ai vs ai mode)\r\n",
+           time_str);
 }
 
 int negamax_wrapper(char *table, char mark)

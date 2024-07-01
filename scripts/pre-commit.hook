@@ -25,7 +25,8 @@ CPPCHECK_suppresses="--inline-suppr harness.c \
 --suppress=nullPointer:ttt/zobrist.c
 --suppress=nullPointer:ttt/agents/mcts.c \
 --suppress=nullPointer:ttt/task_sched.c \
---suppress=constParameter:ttt/ttt.c
+--suppress=constParameter:ttt/ttt.c \
+--suppress=unmatchedSuppression:ttt/agents/mcts.c
 "
 CPPCHECK_OPTS="-I. -Ittt -Ittt/agents --enable=all --error-exitcode=1 --force $CPPCHECK_suppresses $CPPCHECK_unmatched ."
 
