@@ -177,16 +177,16 @@ void listen_keyboard(void *arg)
         poll(&pfd, nfds, 0);
         if (!(pfd.revents & POLLIN))
             schedule();
+
         // prepend (void)! to make gcc happy
         // otherwise it will throw Werror = unused-result
         // but here we don't need to take care of read() return value
+        preempt_disable();
         (void) !read(STDIN_FILENO, &c, 1);
         switch (c) {
         case CTRL_('q'): {
-            preempt_disable();
             clear_line();
             run_ttt = false;
-            preempt_enable();
             break;
         }
         case CTRL_('p'): {
@@ -198,12 +198,10 @@ void listen_keyboard(void *arg)
         }
         case ENTER: {
             if (echo) {
-                preempt_disable();
                 clear_line();
                 clear_screen();
                 fflush(stdout);
                 has_input = input_offset;
-                preempt_enable();
             }
             break;
         }
@@ -245,6 +243,7 @@ void listen_keyboard(void *arg)
         }
         }
         c = '\0';
+        preempt_enable();
     }
 }
 
