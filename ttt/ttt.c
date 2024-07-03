@@ -183,7 +183,10 @@ void listen_keyboard(void *arg)
         (void) !read(STDIN_FILENO, &c, 1);
         switch (c) {
         case CTRL_('q'): {
+            preempt_disable();
+            clear_line();
             run_ttt = false;
+            preempt_enable();
             break;
         }
         case CTRL_('p'): {
@@ -223,15 +226,15 @@ void listen_keyboard(void *arg)
         default: {
             if (echo) {
                 if ((c & 0x1f) == c) {  // press ctrl
-                    printf("^%c", c | 0x40);
                     if (input_offset <
                         INPUT_BUF_SIZE - 2) {  // 2 char, one for '^'
+                        printf("^%c", c | 0x40);
                         snprintf(input + input_offset, 3, "^%c", c | 0x40);
                         input_offset += 2;
                     }
                 } else {
-                    printf("%c", c);
                     if (input_offset < INPUT_BUF_SIZE - 1) {
+                        printf("%c", c);
                         snprintf(input + input_offset, 2, "%c", c);
                         input_offset += 1;
                     }
