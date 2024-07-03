@@ -423,6 +423,8 @@ void rst_ttt()
     render_screen = true;
     recordOK = true;
     input_offset = 0;
+    move_count = 0;
+    memset(move_record, 0, sizeof(move_record));
     memset(input, ' ', INPUT_BUF_SIZE);
     input[0] = '\0';
 }
